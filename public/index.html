@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Structured Output Extraction Pipeline (SOEP)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold text-lg">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">SOEP</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">v1.0.0</span>
+          </div>
+          <p class="text-xs text-slate-400">Structured Output Extraction Pipeline</p>
+        </div>
+      </div>
+
+      <!-- Live Pipeline Badges -->
+      <div class="hidden md:flex items-center space-x-3 text-xs">
+        <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="font-medium">Strict Zod Schema</span>
+        </div>
+        <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span class="font-medium">Self-Healing Retries</span>
+        </div>
+        <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+          <span class="font-medium">Non-Silent HITL Failure Path</span>
+        </div>
+      </div>
+
+      <!-- Right Action / HITL Review Badge -->
+      <div class="flex items-center space-x-3">
+        <button id="nav-review-badge" onclick="switchTab('review')" class="relative flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-300 transition">
+          <i data-lucide="inbox" class="w-4 h-4 text-amber-400"></i>
+          <span>Review Queue</span>
+          <span id="review-count-badge" class="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- TAB NAVIGATION -->
+  <div class="bg-slate-900/50 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-2 overflow-x-auto py-2">
+      <button onclick="switchTab('playground')" id="tab-btn-playground" class="tab-btn active flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        <i data-lucide="terminal" class="w-4 h-4"></i>
+        <span>Extraction Playground</span>
+      </button>
+      <button onclick="switchTab('benchmark')" id="tab-btn-benchmark" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+        <span>50+ Sample Benchmark Suite</span>
+      </button>
+      <button onclick="switchTab('review')" id="tab-btn-review" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        <i data-lucide="check-square" class="w-4 h-4"></i>
+        <span>Human-in-the-Loop Review</span>
+      </button>
+      <button onclick="switchTab('schema')" id="tab-btn-schema" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        <i data-lucide="file-code-2" class="w-4 h-4"></i>
+        <span>Typed Schema & Rules</span>
+      </button>
+      <button onclick="switchTab('architecture')" id="tab-btn-architecture" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        <i data-lucide="git-pull-request" class="w-4 h-4"></i>
+        <span>Pipeline Architecture</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: EXTRACTION PLAYGROUND -->
+    <!-- ======================================================== -->
+    <div id="tab-playground" class="tab-content space-y-6">
+      
+      <!-- Preset Selector Bar -->
+      <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick-Load Preset Scenarios:</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="loadPreset('clean')" class="preset-pill bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-1.5 transition">
+            <span>📄 Clean AWS Invoice</span>
+          </button>
+          <button onclick="loadPreset('noisy')" class="preset-pill bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-1.5 transition">
+            <span>🔍 Messy OCR Receipt</span>
+          </button>
+          <button onclick="loadPreset('international')" class="preset-pill bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-1.5 transition">
+            <span>🌐 German VAT (EUR)</span>
+          </button>
+          <button onclick="loadPreset('job_post')" class="preset-pill bg-blue-950/40 hover:bg-blue-900/50 text-blue-300 text-xs px-3 py-1.5 rounded-lg border border-blue-800/50 flex items-center space-x-1.5 transition">
+            <span>💼 Job Post (Stripe)</span>
+          </button>
+          <button onclick="loadPreset('resume')" class="preset-pill bg-teal-950/40 hover:bg-teal-900/50 text-teal-300 text-xs px-3 py-1.5 rounded-lg border border-teal-800/50 flex items-center space-x-1.5 transition">
+            <span>👤 Résumé (Full-Stack)</span>
+          </button>
+          <button onclick="loadPreset('negative_recipe')" class="preset-pill bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 text-xs px-3 py-1.5 rounded-lg border border-rose-800/50 flex items-center space-x-1.5 transition">
+            <span>🍎 Negative: Apple Pie Recipe</span>
+          </button>
+          <button onclick="loadPreset('negative_weather')" class="preset-pill bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 text-xs px-3 py-1.5 rounded-lg border border-rose-800/50 flex items-center space-x-1.5 transition">
+            <span>🌦️ Negative: Weather Report</span>
+          </button>
+          <button onclick="loadPreset('fault_test')" class="preset-pill bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 text-xs px-3 py-1.5 rounded-lg border border-amber-800/50 flex items-center space-x-1.5 transition">
+            <span>⚡ Self-Healing Retry Test</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Playground Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Input text & controls -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-[520px]">
+            <div class="bg-slate-850 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+                <span class="text-sm font-bold text-slate-200">Raw Unstructured Document</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span id="char-count" class="text-xs text-slate-400 font-mono">0 chars</span>
+                <button onclick="clearInput()" class="text-xs text-slate-400 hover:text-rose-400 transition" title="Clear">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+            <textarea id="raw-input-text" class="flex-1 w-full bg-slate-950 p-4 font-mono text-xs text-slate-200 placeholder-slate-600 border-none outline-none resize-none leading-relaxed" placeholder="Paste unstructured document text, invoice receipt, OCR scan, or out-of-domain text here..."></textarea>
+            
+            <!-- Extraction Config Bar -->
+            <div class="bg-slate-900 px-4 py-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div class="flex items-center space-x-3">
+                <label class="flex items-center space-x-1.5 text-slate-400 cursor-pointer">
+                  <span>Domain:</span>
+                  <select id="domain-select" onchange="onDomainChange()" class="bg-slate-850 border border-slate-700 rounded px-2 py-0.5 text-slate-200 font-mono">
+                    <option value="invoice" selected>Invoice / Receipt</option>
+                    <option value="job_post">Job Posting</option>
+                    <option value="resume">Candidate Résumé</option>
+                  </select>
+                </label>
+                <label class="flex items-center space-x-1.5 text-slate-400 cursor-pointer">
+                  <span>Retries:</span>
+                  <select id="max-retries-select" class="bg-slate-850 border border-slate-700 rounded px-2 py-0.5 text-slate-200 font-mono">
+                    <option value="1">1</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                  </select>
+                </label>
+                <label class="flex items-center space-x-1.5 text-slate-400 cursor-pointer">
+                  <input type="checkbox" id="simulate-fault-check" class="rounded bg-slate-800 border-slate-700 text-indigo-500 focus:ring-0">
+                  <span title="Induces arithmetic or format fault on attempt 1 to demonstrate self-healing retry loop">Test Healing</span>
+                </label>
+              </div>
+              
+              <button id="extract-run-btn" onclick="executeExtraction()" class="bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg shadow-indigo-600/30 transition transform active:scale-95">
+                <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                <span>Extract & Validate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Live Stepper & Output Inspector -->
+        <div class="lg:col-span-7 space-y-4">
+          
+          <!-- Visual Pipeline Execution Stepper -->
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="git-commit" class="w-4 h-4 text-indigo-400"></i>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Live Execution Pipeline Trace</span>
+              </div>
+              <div id="pipeline-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400">
+                Ready
+              </div>
+            </div>
+
+            <!-- Pipeline Step Flow -->
+            <div class="grid grid-cols-4 gap-2 text-center text-xs" id="stepper-nodes">
+              <div class="step-card p-2 rounded-lg bg-slate-950 border border-slate-800" id="step-node-ingest">
+                <div class="font-mono text-slate-400">1. INGEST</div>
+                <div class="text-[10px] text-slate-500 truncate" id="step-node-ingest-desc">Document Ingestion</div>
+              </div>
+              <div class="step-card p-2 rounded-lg bg-slate-950 border border-slate-800" id="step-node-extract">
+                <div class="font-mono text-slate-400">2. EXTRACT</div>
+                <div class="text-[10px] text-slate-500 truncate" id="step-node-extract-desc">Schema Generation</div>
+              </div>
+              <div class="step-card p-2 rounded-lg bg-slate-950 border border-slate-800" id="step-node-validate">
+                <div class="font-mono text-slate-400">3. VALIDATE</div>
+                <div class="text-[10px] text-slate-500 truncate" id="step-node-validate-desc">Strict Zod Check</div>
+              </div>
+              <div class="step-card p-2 rounded-lg bg-slate-950 border border-slate-800" id="step-node-route">
+                <div class="font-mono text-slate-400">4. ROUTE</div>
+                <div class="text-[10px] text-slate-500 truncate" id="step-node-route-desc">Explicit Decision</div>
+              </div>
+            </div>
+            
+            <!-- Step Trace Log Collapsible -->
+            <div id="trace-log-container" class="mt-3 bg-slate-950 rounded-lg p-3 border border-slate-800/80 font-mono text-[11px] max-h-36 overflow-y-auto space-y-1.5 text-slate-400">
+              <div class="text-slate-500 italic">Extraction trace will be recorded here when you run a document.</div>
+            </div>
+          </div>
+
+          <!-- Output Inspector Box -->
+          <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-[350px]">
+            <div class="bg-slate-850 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <button onclick="setInspectorView('structured')" id="btn-view-structured" class="text-xs font-bold text-indigo-400 border-b-2 border-indigo-500 pb-1">Formatted Cards</button>
+                <button onclick="setInspectorView('json')" id="btn-view-json" class="text-xs font-medium text-slate-400 hover:text-slate-200 pb-1">Raw JSON</button>
+              </div>
+              <button onclick="copyOutputJson()" class="text-xs text-slate-400 hover:text-white flex items-center space-x-1 transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span>Copy JSON</span>
+              </button>
+            </div>
+
+            <!-- Formatted View -->
+            <div id="inspector-structured-view" class="flex-1 p-4 overflow-y-auto space-y-4">
+              <div class="text-center py-12 text-slate-500 text-sm">
+                <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                Select a preset or enter raw text on the left, then click <strong>Extract & Validate</strong>.
+              </div>
+            </div>
+
+            <!-- JSON View -->
+            <div id="inspector-json-view" class="flex-1 p-4 overflow-y-auto hidden">
+              <pre id="raw-json-code" class="font-mono text-xs text-emerald-400 whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: 50+ SAMPLE BENCHMARK SUITE -->
+    <!-- ======================================================== -->
+    <div id="tab-benchmark" class="tab-content hidden space-y-6">
+      
+      <!-- Benchmark Header Banner -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <span>Rigorous Benchmark Evaluation Suite</span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">52 Samples</span>
+          </h2>
+          <p class="text-sm text-slate-400 mt-1">
+            Evaluates extraction accuracy, schema compliance, targeted retry self-healing, and zero-hallucination out-of-domain handling across 52 realistic test cases.
+          </p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button onclick="exportBenchmarkJson()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-4 py-2.5 rounded-lg flex items-center space-x-2 border border-slate-700 text-xs transition">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Export Report (JSON)</span>
+          </button>
+          <button id="run-benchmark-btn" onclick="executeBenchmark()" class="bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold px-5 py-2.5 rounded-lg flex items-center space-x-2 shadow-lg shadow-emerald-600/20 transition transform active:scale-95">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+            <span>Run 52-Sample Benchmark</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Metric Cards Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="metric-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider">Overall Accuracy</div>
+          <div id="metric-accuracy" class="text-2xl font-black text-indigo-400 mt-1 font-mono">--%</div>
+          <div class="text-[11px] text-slate-500 mt-1">Field-level match</div>
+        </div>
+        <div class="metric-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider">Schema Compliance</div>
+          <div id="metric-compliance" class="text-2xl font-black text-emerald-400 mt-1 font-mono">--%</div>
+          <div class="text-[11px] text-slate-500 mt-1">Zod typed valid</div>
+        </div>
+        <div class="metric-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider">First-Try Pass</div>
+          <div id="metric-first-try" class="text-2xl font-black text-cyan-400 mt-1 font-mono">--%</div>
+          <div class="text-[11px] text-slate-500 mt-1">No retries needed</div>
+        </div>
+        <div class="metric-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider">Self-Healed Retries</div>
+          <div id="metric-retried" class="text-2xl font-black text-amber-400 mt-1 font-mono">--</div>
+          <div class="text-[11px] text-slate-500 mt-1">Repaired via feedback</div>
+        </div>
+        <div class="metric-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider">Routed to Review</div>
+          <div id="metric-routed" class="text-2xl font-black text-rose-400 mt-1 font-mono">--</div>
+          <div class="text-[11px] text-slate-500 mt-1">Explicit failure path</div>
+        </div>
+        <div class="metric-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider">Negative Handling</div>
+          <div id="metric-negative" class="text-2xl font-black text-violet-400 mt-1 font-mono">--%</div>
+          <div class="text-[11px] text-slate-500 mt-1">12 out-of-domain</div>
+        </div>
+      </div>
+
+      <!-- Field-level Accuracy Visualizer -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+        <h3 class="text-sm font-bold text-slate-300 flex items-center justify-between">
+          <span>Field-by-Field Accuracy Breakdown</span>
+          <span class="text-xs text-slate-500 font-normal">Assessed against ground truth</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="field-accuracy-grid">
+          <div class="text-xs text-slate-500 italic col-span-full">Run benchmark to populate field breakdown metrics.</div>
+        </div>
+      </div>
+
+      <!-- Benchmark Samples Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="table" class="w-4 h-4 text-indigo-400"></i>
+            <span class="text-sm font-bold text-white">52 Benchmark Test Cases</span>
+          </div>
+          <div class="flex items-center space-x-3 text-xs">
+            <select id="benchmark-filter-category" onchange="filterBenchmarkTable()" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-300">
+              <option value="ALL">All Categories (52)</option>
+              <option value="clean">Clean Invoices (10)</option>
+              <option value="noisy_ocr">Messy OCR (12)</option>
+              <option value="international">International (8)</option>
+              <option value="edge_case">Edge Cases (10)</option>
+              <option value="negative_out_of_domain">Negative Out-of-Domain (12)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-left text-xs font-sans">
+            <thead class="bg-slate-850 text-slate-400 uppercase tracking-wider font-mono sticky top-0 border-b border-slate-800">
+              <tr>
+                <th class="p-3">Sample ID</th>
+                <th class="p-3">Category</th>
+                <th class="p-3">Description</th>
+                <th class="p-3">Accuracy</th>
+                <th class="p-3">Attempts</th>
+                <th class="p-3">Validation Status</th>
+                <th class="p-3 text-right">Inspect</th>
+              </tr>
+            </thead>
+            <tbody id="benchmark-table-body" class="divide-y divide-slate-800 font-mono text-slate-300">
+              <tr>
+                <td colspan="7" class="p-8 text-center text-slate-500 font-sans">
+                  Click <strong>Run 52-Sample Benchmark</strong> above to execute the pipeline over all test samples.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: HUMAN-IN-THE-LOOP REVIEW QUEUE -->
+    <!-- ======================================================== -->
+    <div id="tab-review" class="tab-content hidden space-y-6">
+      
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400"></i>
+            <span>Human-in-the-Loop Review Queue</span>
+          </h2>
+          <p class="text-sm text-slate-400 mt-1">
+            Explicit failure path: Any document that fails schema validation across retries is routed here. Nothing is silently accepted or discarded.
+          </p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="loadReviewQueue()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-medium flex items-center space-x-1.5 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Review Queue Items List or Detail -->
+      <div id="review-queue-content" class="space-y-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">
+          <i data-lucide="check-circle-2" class="w-10 h-10 mx-auto mb-2 text-emerald-500 opacity-60"></i>
+          <p class="font-semibold text-slate-300">Review Queue is Clean</p>
+          <p class="text-xs text-slate-500 mt-1">All extracted documents satisfied the schema constraints or were resolved.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: TYPED SCHEMA & RULES EXPLORER -->
+    <!-- ======================================================== -->
+    <div id="tab-schema" class="tab-content hidden space-y-6">
+      
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+          <i data-lucide="file-code-2" class="w-5 h-5 text-indigo-400"></i>
+          <span>Typed Schema Specification (Zod & JSON Schema)</span>
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          The pipeline rigorously assesses every output against this typed schema. Any mismatch triggers targeted repair retries or the explicit human review path.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Constraints Card -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-indigo-300 uppercase tracking-wider font-mono">Cross-Field Validation Invariants</h3>
+            <div class="space-y-2 text-xs text-slate-300">
+              <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                <span class="font-bold text-amber-400">1. Arithmetic Consistency:</span>
+                <p class="text-slate-400 mt-1 font-mono">abs((subtotal + tax_amount) - total_amount) &le; 0.05</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Guarantees line-item math and totals cannot diverge.</p>
+              </div>
+              <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                <span class="font-bold text-amber-400">2. Out-of-Domain Negative Zero-Tolerance:</span>
+                <p class="text-slate-400 mt-1 font-mono">is_valid_document === false &rarr; total_amount === null &amp;&amp; invoice_number === null</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Completely forbids hallucinating false billing fields on unrelated documents (recipes, weather, prose).</p>
+              </div>
+              <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                <span class="font-bold text-amber-400">3. ISO 8601 Date Formats &amp; Chronology:</span>
+                <p class="text-slate-400 mt-1 font-mono">invoice_date &amp; due_date ~ /^\d{4}-\d{2}-\d{2}$/ &amp;&amp; due_date &ge; invoice_date</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Enforces strict calendar standardization and ensures payment due date cannot precede issuance date.</p>
+              </div>
+              <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                <span class="font-bold text-amber-400">4. Itemized Math Refinement:</span>
+                <p class="text-slate-400 mt-1 font-mono">abs(quantity * unit_price - amount) &le; 0.05</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Validates line item unit rates against extended line item amounts.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schema JSON Viewer -->
+        <div class="lg:col-span-7">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <div class="bg-slate-850 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300 font-mono">InvoiceJsonSchema.json</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">JSON Schema Draft-07</span>
+            </div>
+            <pre class="p-4 bg-slate-950 font-mono text-xs text-indigo-300 overflow-x-auto max-h-[500px]" id="schema-viewer-code"></pre>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: PIPELINE ARCHITECTURE -->
+    <!-- ======================================================== -->
+    <div id="tab-architecture" class="tab-content hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+          <i data-lucide="git-pull-request" class="w-5 h-5 text-indigo-400"></i>
+          <span>Production Pipeline Architecture &amp; Failure Path</span>
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Zero silent failures. How raw unstructured text is turned into validated structured records reliably.
+        </p>
+
+        <!-- Visual Flow Diagram -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+          
+          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center space-y-2">
+            <div class="w-10 h-10 mx-auto rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">1</div>
+            <h4 class="font-bold text-white text-sm">Unstructured Ingestion</h4>
+            <p class="text-[11px] text-slate-400">Messy text, noisy OCR scans, faxes, international invoices, or out-of-domain articles.</p>
+          </div>
+
+          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center space-y-2">
+            <div class="w-10 h-10 mx-auto rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">2</div>
+            <h4 class="font-bold text-white text-sm">Schema-Constrained Generation</h4>
+            <p class="text-[11px] text-slate-400">Entity parsing, currency recognition, itemized table parsing, and out-of-domain classification.</p>
+          </div>
+
+          <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center space-y-2">
+            <div class="w-10 h-10 mx-auto rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">3</div>
+            <h4 class="font-bold text-white text-sm">Strict Zod Validation</h4>
+            <p class="text-[11px] text-slate-400">Evaluates types, regex dates, cross-field arithmetic checks (subtotal + tax = total).</p>
+          </div>
+
+          <div class="p-4 bg-slate-950 rounded-xl border border-amber-800/40 text-center space-y-2">
+            <div class="w-10 h-10 mx-auto rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">4</div>
+            <h4 class="font-bold text-amber-300 text-sm">Targeted Self-Healing</h4>
+            <p class="text-[11px] text-slate-400">Injects exact error paths into feedback prompt. Retries extraction iteratively.</p>
+          </div>
+
+          <div class="p-4 bg-slate-950 rounded-xl border border-rose-800/40 text-center space-y-2">
+            <div class="w-10 h-10 mx-auto rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">5</div>
+            <h4 class="font-bold text-rose-300 text-sm">Explicit HITL Routing</h4>
+            <p class="text-[11px] text-slate-400">Never silently accepted. Enqueued in review queue with full diagnostic audit trace.</p>
+          </div>
+
+        </div>
+
+        <!-- Callout Alert -->
+        <div class="mt-6 p-4 rounded-xl bg-indigo-950/40 border border-indigo-800/50 flex items-start space-x-3">
+          <i data-lucide="info" class="w-5 h-5 text-indigo-400 shrink-0 mt-0.5"></i>
+          <div class="text-xs text-indigo-200 leading-relaxed">
+            <strong>Key Reliability Guarantee:</strong> The pipeline strictly distinguishes between <em>validated invoices</em>, <em>self-healed invoices</em>, <em>explicitly rejected out-of-domain documents</em>, and <em>routed review items</em>. An invalid extraction is physically incapable of escaping into downstream data stores without either being repaired by the retry loop or explicitly approved by a human reviewer.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- SAMPLE INSPECTION MODAL -->
+  <div id="sample-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="bg-slate-850 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 id="modal-sample-title" class="font-bold text-white text-base">Sample Inspection</h3>
+          <p id="modal-sample-subtitle" class="text-xs text-slate-400 mt-0.5 font-mono"></p>
+        </div>
+        <button onclick="closeSampleModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        
+        <!-- Accuracy & Status Bar -->
+        <div class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+          <div class="flex items-center space-x-2">
+            <span class="text-slate-400">Extraction Status:</span>
+            <span id="modal-status-badge" class="px-2 py-0.5 rounded font-mono font-bold"></span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-slate-400">Sample Accuracy:</span>
+            <span id="modal-accuracy-badge" class="font-mono font-black text-indigo-400 text-sm"></span>
+          </div>
+        </div>
+
+        <!-- Field Diff Table -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Field-Level Ground Truth vs Extracted</h4>
+          <div class="overflow-x-auto rounded-lg border border-slate-800">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="bg-slate-850 text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2.5">Field</th>
+                  <th class="p-2.5">Ground Truth</th>
+                  <th class="p-2.5">Actual Extracted</th>
+                  <th class="p-2.5 text-center">Match</th>
+                </tr>
+              </thead>
+              <tbody id="modal-diff-body" class="divide-y divide-slate-800 bg-slate-950 text-slate-300">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Original Raw Document Text -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Raw Document Content</h4>
+          <pre id="modal-raw-text" class="p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-300 max-h-48 overflow-y-auto whitespace-pre-wrap"></pre>
+        </div>
+
+      </div>
+
+      <div class="bg-slate-850 px-6 py-3 border-t border-slate-800 flex justify-end">
+        <button onclick="closeSampleModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">
+          Close Inspector
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 bg-slate-900/60 py-4 text-center text-xs text-slate-500">
+    Structured Output Extraction Pipeline &copy; 2026 &bull; Strict Schema Enforcement &bull; Non-Silent Failure Routing
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
