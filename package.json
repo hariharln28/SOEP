@@ -16,7 +16,7 @@
     "human-in-the-loop"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
     "@google/genai": "^3.0.0",

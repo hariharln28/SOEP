@@ -39,6 +39,9 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
   <!-- TOP HEADER -->
   <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -193,6 +196,19 @@
                   <input type="checkbox" id="simulate-fault-check" class="rounded bg-slate-800 border-slate-700 text-indigo-500 focus:ring-0">
                   <span title="Induces arithmetic or format fault on attempt 1 to demonstrate self-healing retry loop">Test Healing</span>
                 </label>
+              </div>
+              
+              <!-- Gemini API Key (optional) -->
+              <div class="flex items-center space-x-2 text-slate-500">
+                <i data-lucide="key" class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0"></i>
+                <input
+                  type="password"
+                  id="gemini-api-key"
+                  class="api-key-input"
+                  placeholder="Gemini API Key (optional)"
+                  title="Optional: provide a Gemini API key to enable live LLM extraction as fallback"
+                  autocomplete="off"
+                />
               </div>
               
               <button id="extract-run-btn" onclick="executeExtraction()" class="bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg shadow-indigo-600/30 transition transform active:scale-95">

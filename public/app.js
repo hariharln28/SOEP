@@ -2,6 +2,55 @@
  * SOEP Frontend Application Logic
  */
 
+// ========================================================
+// TOAST NOTIFICATION SYSTEM
+// ========================================================
+const TOAST_ICONS = {
+  success: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  error:   `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  info:    `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+  warning: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+};
+const TOAST_TITLES = { success: 'Success', error: 'Error', info: 'Info', warning: 'Warning' };
+
+/**
+ * Show a toast notification.
+ * @param {string} message  - The message body text.
+ * @param {'success'|'error'|'info'|'warning'} [type='info']
+ * @param {number} [duration=3500] - Auto-dismiss timeout in ms.
+ */
+function showToast(message, type = 'info', duration = 3500) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `
+    <span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</span>
+    <div class="toast-body">
+      <div class="toast-title">${TOAST_TITLES[type] || 'Notice'}</div>
+      <div class="toast-msg">${message}</div>
+    </div>
+    <button class="toast-close" aria-label="Dismiss" onclick="dismissToast(this.parentElement)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  `;
+
+  container.appendChild(toast);
+
+  const timer = setTimeout(() => dismissToast(toast), duration);
+  toast._timer = timer;
+}
+
+function dismissToast(toast) {
+  if (!toast || toast._dismissed) return;
+  toast._dismissed = true;
+  clearTimeout(toast._timer);
+  toast.classList.add('toast-out');
+  toast.addEventListener('animationend', () => toast.remove(), { once: true });
+}
+
 let currentTab = 'playground';
 let currentBenchmarkData = null;
 let currentExtractionResult = null;
@@ -201,13 +250,14 @@ function clearInput() {
 async function executeExtraction() {
   const text = document.getElementById('raw-input-text').value.trim();
   if (!text) {
-    alert("Please enter or select document text first.");
+    showToast('Please enter or select document text first.', 'warning');
     return;
   }
 
   const domain = document.getElementById('domain-select') ? document.getElementById('domain-select').value : 'invoice';
   const maxRetries = parseInt(document.getElementById('max-retries-select').value, 10);
   const simulateFault = document.getElementById('simulate-fault-check').checked;
+  const apiKey = (document.getElementById('gemini-api-key')?.value || '').trim();
   const runBtn = document.getElementById('extract-run-btn');
 
   // UI state: Running
@@ -225,7 +275,8 @@ async function executeExtraction() {
         text,
         domain,
         maxRetries,
-        simulateFault
+        simulateFault,
+        ...(apiKey ? { apiKey } : {})
       })
     });
 
@@ -236,7 +287,7 @@ async function executeExtraction() {
     renderInspector(result);
     loadReviewQueue(); // Refresh badge in case item was routed
   } catch (err) {
-    alert("Extraction error: " + err.message);
+    showToast('Extraction error: ' + err.message, 'error', 5000);
   } finally {
     runBtn.disabled = false;
     runBtn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i><span>Extract & Validate</span>`;
@@ -533,7 +584,7 @@ function copyOutputJson() {
   const jsonCode = document.getElementById('raw-json-code').innerText;
   if (!jsonCode) return;
   navigator.clipboard.writeText(jsonCode).then(() => {
-    alert("JSON output copied to clipboard!");
+    showToast('JSON output copied to clipboard!', 'success', 2500);
   });
 }
 
@@ -581,7 +632,7 @@ async function executeBenchmark() {
 
     renderBenchmarkTable(report.sampleEvaluations);
   } catch (err) {
-    alert("Benchmark execution failed: " + err.message);
+    showToast('Benchmark execution failed: ' + err.message, 'error', 5000);
   } finally {
     runBtn.disabled = false;
     runBtn.innerHTML = `<i data-lucide="play-circle" class="w-5 h-5"></i><span>Re-Run 52-Sample Benchmark</span>`;
@@ -832,11 +883,11 @@ async function resolveReview(itemId, action) {
     });
 
     if (response.ok) {
-      alert(`Item ${itemId} ${action === 'REJECT' ? 'Rejected' : 'Approved'} successfully.`);
+      showToast(`Item ${itemId} ${action === 'REJECT' ? 'Rejected' : 'Approved'} successfully.`, 'success');
       loadReviewQueue();
     }
   } catch (err) {
-    alert("Resolution error: " + err.message);
+    showToast('Resolution error: ' + err.message, 'error', 5000);
   }
 }
 
@@ -857,7 +908,7 @@ async function loadSchema() {
 // Export Benchmark Results as JSON File
 function exportBenchmarkJson() {
   if (!currentBenchmarkData) {
-    alert("Please run the benchmark first.");
+    showToast('Please run the benchmark suite first.', 'warning');
     return;
   }
   const blob = new Blob([JSON.stringify(currentBenchmarkData, null, 2)], { type: 'application/json' });
@@ -867,4 +918,5 @@ function exportBenchmarkJson() {
   a.download = `soep-benchmark-report-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  showToast('Benchmark report downloaded as JSON.', 'success', 2500);
 }
