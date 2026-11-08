@@ -1,6 +1,5 @@
 # Structured Output Extraction Pipeline (SOEP)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-v24+-green.svg)](https://nodejs.org/)
 [![Zod](https://img.shields.io/badge/Schema-Zod%20Strict-indigo.svg)](https://zod.dev/)
 [![Benchmark](https://img.shields.io/badge/Benchmark-52%20Samples%20%7C%2092.5%25%20Accuracy-emerald.svg)](tests/benchmark.test.js)
@@ -240,8 +239,3 @@ SOEP/
 └── tests/
     └── benchmark.test.js      # Headless CLI benchmark test runner
 ```
-
----
-
-## 📄 License
-MIT License &copy; 2026. Free for educational and commercial use.
